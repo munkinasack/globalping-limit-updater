@@ -98,6 +98,8 @@ function htmlPage() {
       const refreshSelect = document.getElementById("refreshInterval");
 
       let refreshTimer = null;
+      let countdownTimer = null;
+      let resetDeadlineMs = null;
 
       const fmtSeconds = (seconds) => {
         const total = Math.max(0, Number(seconds) || 0);
@@ -118,11 +120,30 @@ function htmlPage() {
           const data = await res.json();
           limitEl.textContent = data.limit;
           remainingEl.textContent = data.remaining;
-          resetEl.textContent = fmtSeconds(data.reset);
+          resetDeadlineMs = Date.now() + Math.max(0, Number(data.reset) || 0) * 1000;
+          renderResetCountdown();
           errorEl.textContent = "";
         } catch (err) {
           errorEl.textContent = "Failed to load limits. " + err.message;
         }
+      }
+
+      function renderResetCountdown() {
+        if (resetDeadlineMs === null) {
+          resetEl.textContent = "—";
+          return;
+        }
+
+        const secondsLeft = Math.ceil((resetDeadlineMs - Date.now()) / 1000);
+        resetEl.textContent = fmtSeconds(secondsLeft);
+      }
+
+      function startCountdown() {
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+        }
+
+        countdownTimer = setInterval(renderResetCountdown, 1000);
       }
 
       function startAutoRefresh() {
@@ -140,6 +161,7 @@ function htmlPage() {
 
       loadLimits();
       startAutoRefresh();
+      startCountdown();
     </script>
   </body>
 </html>`;
