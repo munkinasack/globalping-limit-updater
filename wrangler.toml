@@ -1,0 +1,3 @@
+name = "globalping-limit-updater"
+main = "_worker.js"
+compatibility_date = "2025-01-01"
