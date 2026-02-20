@@ -155,31 +155,6 @@ function json(data, init = {}) {
   });
 }
 
-function readNumber(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function extractLimits(payload, headers) {
-  const fromBody =
-    payload?.rateLimit?.measurements?.create ||
-    payload?.measurements ||
-    payload?.limits?.measurements?.create ||
-    null;
-
-  const limit = readNumber(fromBody?.limit ?? headers.get("x-ratelimit-limit"));
-  const remaining = readNumber(
-    fromBody?.remaining ?? headers.get("x-ratelimit-remaining")
-  );
-  const reset = readNumber(fromBody?.reset ?? headers.get("x-ratelimit-reset"));
-
-  if (limit === null || remaining === null || reset === null) {
-    return null;
-  }
-
-  return { limit, remaining, reset };
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -218,19 +193,12 @@ export default {
       }
 
       const payload = await upstream.json();
-      const limits = extractLimits(payload, upstream.headers);
 
-      if (!limits) {
-        return json(
-          {
-            error: "Globalping response did not include expected rate-limit fields",
-            sample: JSON.stringify(payload).slice(0, 300),
-          },
-          { status: 502 }
-        );
-      }
-
-      return json(limits);
+      return json({
+        limit: payload.measurements.limit,
+        remaining: payload.measurements.remaining,
+        reset: payload.measurements.reset,
+      });
     }
 
     return new Response("Not found", { status: 404 });
