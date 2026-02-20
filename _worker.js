@@ -194,7 +194,8 @@ export default {
 
       const payload = await upstream.json();
 
-      if (!payload?.measurements) {
+      const m = payload?.rateLimit?.measurements?.create;
+      if (!m) {
         return json(
           {
             error: "Unexpected Globalping API response shape",
@@ -205,9 +206,9 @@ export default {
       }
 
       return json({
-        limit: payload.measurements.limit,
-        remaining: payload.measurements.remaining,
-        reset: payload.measurements.reset,
+        limit: m.limit,
+        remaining: m.remaining,
+        reset: m.reset,
       });
     }
 
