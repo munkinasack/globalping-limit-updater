@@ -194,6 +194,16 @@ export default {
 
       const payload = await upstream.json();
 
+      if (!payload?.measurements) {
+        return json(
+          {
+            error: "Unexpected Globalping API response shape",
+            details: JSON.stringify(payload).slice(0, 300),
+          },
+          { status: 502 }
+        );
+      }
+
       return json({
         limit: payload.measurements.limit,
         remaining: payload.measurements.remaining,
