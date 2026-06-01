@@ -1,5 +1,5 @@
 const API_URL = "https://api.globalping.io/v1/limits";
-const DEFAULT_REFRESH_MS = 30000;
+const LIVE_REFRESH_MS = 1000;
 
 function htmlPage() {
   return `<!doctype html>
@@ -33,22 +33,10 @@ function htmlPage() {
         margin: 0 0 1rem;
         font-size: 1.3rem;
       }
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-      }
-      label {
+      .status {
         color: #94a3b8;
         font-size: 0.95rem;
-      }
-      select {
-        background: #0b1220;
-        color: #e2e8f0;
-        border: 1px solid #334155;
-        border-radius: 8px;
-        padding: 0.25rem 0.5rem;
+        margin-bottom: 1rem;
       }
       dl {
         margin: 0;
@@ -73,16 +61,7 @@ function htmlPage() {
   <body>
     <main>
       <h1>Globalping API Rate Limits</h1>
-      <div class="toolbar">
-        <label for="refreshInterval">Refresh:</label>
-        <select id="refreshInterval" aria-label="Refresh interval">
-          <option value="5000">Every 5 seconds</option>
-          <option value="15000">Every 15 seconds</option>
-          <option value="30000" selected>Every 30 seconds</option>
-          <option value="60000">Every 1 minute</option>
-          <option value="300000">Every 5 minutes</option>
-        </select>
-      </div>
+      <div class="status" id="liveStatus" role="status" aria-live="polite">Live updates enabled</div>
       <dl>
         <dt>Rate Limit</dt><dd id="limit">—</dd>
         <dt>Remaining</dt><dd id="remaining">—</dd>
@@ -95,11 +74,12 @@ function htmlPage() {
       const remainingEl = document.getElementById("remaining");
       const resetEl = document.getElementById("reset");
       const errorEl = document.getElementById("error");
-      const refreshSelect = document.getElementById("refreshInterval");
+      const liveStatusEl = document.getElementById("liveStatus");
 
-      let refreshTimer = null;
+      let liveTimer = null;
       let countdownTimer = null;
       let resetDeadlineMs = null;
+      let isLoading = false;
 
       const fmtSeconds = (seconds) => {
         const total = Math.max(0, Number(seconds) || 0);
@@ -114,17 +94,24 @@ function htmlPage() {
       };
 
       async function loadLimits() {
+        if (isLoading) return;
+        isLoading = true;
+
         try {
-          const res = await fetch("/api/limits", { cache: "no-store" });
+          const res = await fetch("/api/limits?t=" + Date.now(), { cache: "no-store" });
           if (!res.ok) throw new Error("HTTP " + res.status);
           const data = await res.json();
           limitEl.textContent = data.limit;
           remainingEl.textContent = data.remaining;
           resetDeadlineMs = Date.now() + Math.max(0, Number(data.reset) || 0) * 1000;
           renderResetCountdown();
+          liveStatusEl.textContent = "Live updates enabled";
           errorEl.textContent = "";
         } catch (err) {
+          liveStatusEl.textContent = "Live updates retrying…";
           errorEl.textContent = "Failed to load limits. " + err.message;
+        } finally {
+          isLoading = false;
         }
       }
 
@@ -146,21 +133,22 @@ function htmlPage() {
         countdownTimer = setInterval(renderResetCountdown, 1000);
       }
 
-      function startAutoRefresh() {
-        if (refreshTimer) {
-          clearInterval(refreshTimer);
+      function startLiveUpdates() {
+        if (liveTimer) {
+          clearInterval(liveTimer);
         }
 
-        const intervalMs = Number(refreshSelect.value) || ${DEFAULT_REFRESH_MS};
-        refreshTimer = setInterval(loadLimits, intervalMs);
+        loadLimits();
+        liveTimer = setInterval(loadLimits, ${LIVE_REFRESH_MS});
       }
 
-      refreshSelect.addEventListener("change", () => {
-        startAutoRefresh();
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          loadLimits();
+        }
       });
 
-      loadLimits();
-      startAutoRefresh();
+      startLiveUpdates();
       startCountdown();
     </script>
   </body>
