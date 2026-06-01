@@ -50,6 +50,8 @@ function htmlPage() {
         margin: 0;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
+        min-width: 6rem;
+        text-align: right;
       }
       .error {
         margin-top: 1rem;
